@@ -1,0 +1,81 @@
+﻿project_name: fraud_risk_scoring_system
+random_seed: 42
+
+paths:
+  raw_data_path: data/raw/paysim.csv
+  processed_data_path: data/processed/transactions_processed.parquet
+  split_data_dir: data/processed/splits
+  audit_report_path: data/artifacts/audit_report.json
+  model_dir: data/models
+  artifact_dir: data/artifacts
+  comparison_metrics_path: data/artifacts/model_comparison_metrics.json
+  threshold_summary_path: data/artifacts/threshold_summary.json
+
+dataset:
+  name: paysim
+  source: kaggle
+  provenance_url: https://www.kaggle.com/datasets/ealaxi/paysim1
+  kaggle_dataset: ealaxi/paysim1
+  is_synthetic: true
+  target_aliases: [isFraud, fraud, class, target, label]
+  drop_identifier_columns: [nameOrig, nameDest]
+  leakage_risk_columns: [isFlaggedFraud]
+  duplicate_policy: drop_exact
+  sample_max_rows: 750000
+
+schema:
+  target_col: isFraud
+  positive_class_value: 1
+  id_cols: [nameOrig, nameDest]
+  time_col: step
+
+split:
+  strategy: random_stratified
+  train_size: 0.70
+  val_size: 0.15
+  test_size: 0.15
+
+preprocessing:
+  numeric_imputer_strategy: median
+  categorical_imputer_strategy: most_frequent
+  scale_numeric_for_linear: true
+  one_hot_min_frequency: 0.005
+
+models:
+  enabled: [logistic_regression, random_forest, xgboost]
+  primary_model: auto
+  logistic_regression:
+    C: 1.0
+    max_iter: 1000
+    class_weight: balanced
+  random_forest:
+    n_estimators: 300
+    max_depth: 12
+    min_samples_leaf: 2
+    class_weight: balanced_subsample
+    n_jobs: 1
+  xgboost:
+    n_estimators: 500
+    learning_rate: 0.05
+    max_depth: 6
+    subsample: 0.9
+    colsample_bytree: 0.9
+    reg_lambda: 1.0
+
+calibration:
+  enabled: true
+  method: isotonic
+
+thresholding:
+  default_threshold: 0.50
+  precision_floor: 0.90
+  recall_floor: 0.80
+  false_positive_cost: 1.0
+  false_negative_cost: 25.0
+
+api:
+  host: 0.0.0.0
+  port: 8000
+
+logging:
+  level: INFO
